@@ -7,6 +7,17 @@ import 'package:frostdart/frostdart_bindings_generated.dart' as bindings;
 import 'package:frostdart/output.dart';
 import 'package:frostdart/util.dart';
 
+/// Retains the pre-migration `multisig_config` field name.
+extension StartResharedResCompatibility on StartResharedRes {
+  // ignore: non_constant_identifier_names
+  ffi.Pointer<MultisigConfig> get multisig_config => multisig_config$1;
+
+  // ignore: non_constant_identifier_names
+  set multisig_config(ffi.Pointer<MultisigConfig> value) {
+    multisig_config$1 = value;
+  }
+}
+
 // =============================================================================
 // ===== wrapped functions to make them as close to pure dart as possible ======
 
