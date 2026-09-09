@@ -4,6 +4,7 @@
 * Replace `FrostdartBindings` with generated `@Native` functions; public wrappers remain available.
 
 * Correct the script-pubkey ABI and avoid freeing Rust boxes in Dart.
+* Fix borrowed-string ownership, UTF-8 marshalling and configuration accessors.
 
 ## 0.0.1
 

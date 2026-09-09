@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:ffi' as ffi;
 import 'dart:typed_data';
 
@@ -14,32 +15,29 @@ void freeOwnedString(OwnedString ownedString) {
   return bindings.free_owned_string(ownedString);
 }
 
-String multisigName({
-  required String multisigConfig,
-}) {
-  final multisigConfigPointer =
-      decodeMultisigConfig(multisigConfig: multisigConfig);
+String multisigName({required String multisigConfig}) {
+  final multisigConfigPointer = decodeMultisigConfig(
+    multisigConfig: multisigConfig,
+  );
   final result = bindings.multisig_name(multisigConfigPointer);
 
   final bytes = result.ptr.asTypedList(result.len);
-  final String name = String.fromCharCodes(bytes);
+  final String name = utf8.decode(bytes);
 
   return name;
 }
 
-int multisigThreshold({
-  required String multisigConfig,
-}) {
-  final multisigConfigPointer =
-      decodeMultisigConfig(multisigConfig: multisigConfig);
+int multisigThreshold({required String multisigConfig}) {
+  final multisigConfigPointer = decodeMultisigConfig(
+    multisigConfig: multisigConfig,
+  );
   return bindings.multisig_threshold(multisigConfigPointer);
 }
 
-int multisigParticipants({
-  required String multisigConfig,
-}) {
-  final multisigConfigPointer =
-      decodeMultisigConfig(multisigConfig: multisigConfig);
+int multisigParticipants({required String multisigConfig}) {
+  final multisigConfigPointer = decodeMultisigConfig(
+    multisigConfig: multisigConfig,
+  );
   return bindings.multisig_participants(multisigConfigPointer);
 }
 
@@ -47,8 +45,9 @@ String multisigParticipant({
   required int index,
   required String multisigConfig,
 }) {
-  final multisigConfigPointer =
-      decodeMultisigConfig(multisigConfig: multisigConfig);
+  final multisigConfigPointer = decodeMultisigConfig(
+    multisigConfig: multisigConfig,
+  );
   final stringView = bindings.multisig_participant(
     multisigConfigPointer,
     index,
@@ -57,16 +56,13 @@ String multisigParticipant({
   final utf8Pointer = stringView.ptr.cast<Utf8>();
   final string = utf8Pointer.toDartString(length: stringView.len);
 
-  calloc.free(utf8Pointer);
-
   return string;
 }
 
-Uint8List multisigSalt({
-  required String multisigConfig,
-}) {
-  final multisigConfigPointer =
-      decodeMultisigConfig(multisigConfig: multisigConfig);
+Uint8List multisigSalt({required String multisigConfig}) {
+  final multisigConfigPointer = decodeMultisigConfig(
+    multisigConfig: multisigConfig,
+  );
   final uint8Pointer = bindings.multisig_salt(multisigConfigPointer);
   final bytes = uint8Pointer.asTypedList(SALT_BYTES_LENGTH);
 
@@ -82,14 +78,10 @@ ffi.Pointer<MultisigConfig> multisigConfig({
 String multisigMyName({
   required ffi.Pointer<MultisigConfigWithName> multisigConfigWithNamePointer,
 }) {
-  final stringView = bindings.multisig_my_name(
-    multisigConfigWithNamePointer,
-  );
+  final stringView = bindings.multisig_my_name(multisigConfigWithNamePointer);
 
   final utf8Pointer = stringView.ptr.cast<Utf8>();
   final string = utf8Pointer.toDartString(length: stringView.len);
-
-  calloc.free(utf8Pointer);
 
   return string;
 }
@@ -98,29 +90,29 @@ String newMultisigConfig({
   required String name,
   required int threshold,
   required List<String> participants,
-}) {
-  ffi.Pointer<ffi.Uint8> multisigName = name.toNativeUtf8().cast<ffi.Uint8>();
+}) => using((arena) {
+  ffi.Pointer<ffi.Uint8> multisigName = name
+      .toNativeUtf8(allocator: arena)
+      .cast<ffi.Uint8>();
 
-  ffi.Pointer<StringView> participantsPointer = calloc<StringView>(
+  ffi.Pointer<StringView> participantsPointer = arena<StringView>(
     participants.length,
   );
 
   for (int i = 0; i < participants.length; i++) {
-    participantsPointer[i].len = participants[i].length;
-    participantsPointer[i].ptr =
-        participants[i].toNativeUtf8().cast<ffi.Uint8>();
+    participantsPointer[i].len = utf8.encode(participants[i]).length;
+    participantsPointer[i].ptr = participants[i]
+        .toNativeUtf8(allocator: arena)
+        .cast<ffi.Uint8>();
   }
 
   final result = bindings.new_multisig_config(
     multisigName,
-    name.length,
+    utf8.encode(name).length,
     threshold,
     participantsPointer,
     participants.length,
   );
-
-  calloc.free(multisigName);
-  calloc.free(participantsPointer);
 
   if (result.err != SUCCESS) {
     throw FrostdartException(errorCode: result.err);
@@ -129,26 +121,25 @@ String newMultisigConfig({
     freeOwnedString(result.value.ref.encoded);
     return string;
   }
-}
+});
 
 ffi.Pointer<MultisigConfig> decodeMultisigConfig({
   required String multisigConfig,
-}) {
-  final stringViewPointer = calloc<StringView>();
-  stringViewPointer.ref.ptr = multisigConfig.toNativeUtf8().cast<ffi.Uint8>();
-  stringViewPointer.ref.len = multisigConfig.length;
+}) => using((arena) {
+  final stringViewPointer = arena<StringView>();
+  stringViewPointer.ref.ptr = multisigConfig
+      .toNativeUtf8(allocator: arena)
+      .cast<ffi.Uint8>();
+  stringViewPointer.ref.len = utf8.encode(multisigConfig).length;
 
   final result = bindings.decode_multisig_config(stringViewPointer.ref);
-
-  calloc.free(stringViewPointer.ref.ptr);
-  calloc.free(stringViewPointer);
 
   if (result.err != SUCCESS) {
     throw FrostdartException(errorCode: result.err);
   } else {
     return result.value;
   }
-}
+});
 
 String encodeMultisigConfig({
   required ffi.Pointer<MultisigConfig> multisigConfigPointer,
@@ -164,13 +155,16 @@ ffi.Pointer<StartKeyGenRes> startKeyGen({
   required String multisigConfig,
   required String myName,
   required Language language,
-}) {
-  final stringViewPointer = calloc<StringView>();
-  stringViewPointer.ref.ptr = myName.toNativeUtf8().cast<ffi.Uint8>();
-  stringViewPointer.ref.len = myName.length;
+}) => using((arena) {
+  final stringViewPointer = arena<StringView>();
+  stringViewPointer.ref.ptr = myName
+      .toNativeUtf8(allocator: arena)
+      .cast<ffi.Uint8>();
+  stringViewPointer.ref.len = utf8.encode(myName).length;
 
-  final multisigConfigPointer =
-      decodeMultisigConfig(multisigConfig: multisigConfig);
+  final multisigConfigPointer = decodeMultisigConfig(
+    multisigConfig: multisigConfig,
+  );
 
   final result = bindings.start_key_gen(
     multisigConfigPointer,
@@ -178,15 +172,12 @@ ffi.Pointer<StartKeyGenRes> startKeyGen({
     language.code,
   );
 
-  calloc.free(stringViewPointer.ref.ptr);
-  calloc.free(stringViewPointer);
-
   if (result.err != SUCCESS) {
     throw FrostdartException(errorCode: result.err);
   } else {
     return result.value;
   }
-}
+});
 
 ffi.Pointer<SecretSharesRes> getSecretShares({
   required ffi.Pointer<MultisigConfigWithName> multisigConfigWithName,
@@ -194,19 +185,24 @@ ffi.Pointer<SecretSharesRes> getSecretShares({
   required Language language,
   required ffi.Pointer<SecretShareMachineWrapper> machine,
   required List<String> commitments,
-}) {
-  final stringViewPointer = calloc<StringView>();
-  stringViewPointer.ref.ptr = seed.toNativeUtf8().cast<ffi.Uint8>();
-  stringViewPointer.ref.len = seed.length;
+}) => using((arena) {
+  final stringViewPointer = arena<StringView>();
+  stringViewPointer.ref.ptr = seed
+      .toNativeUtf8(allocator: arena)
+      .cast<ffi.Uint8>();
+  stringViewPointer.ref.len = utf8.encode(seed).length;
 
-  ffi.Pointer<StringView> commitmentsPointer =
-      calloc<StringView>(commitments.length);
+  ffi.Pointer<StringView> commitmentsPointer = arena<StringView>(
+    commitments.length,
+  );
 
   for (int i = 0; i < commitments.length; i++) {
     final commitment = commitments[i];
-    final stringViewPointer = calloc<StringView>();
-    stringViewPointer.ref.ptr = commitment.toNativeUtf8().cast<ffi.Uint8>();
-    stringViewPointer.ref.len = commitment.length;
+    final stringViewPointer = arena<StringView>();
+    stringViewPointer.ref.ptr = commitment
+        .toNativeUtf8(allocator: arena)
+        .cast<ffi.Uint8>();
+    stringViewPointer.ref.len = utf8.encode(commitment).length;
     commitmentsPointer[i] = stringViewPointer.ref;
   }
 
@@ -219,29 +215,27 @@ ffi.Pointer<SecretSharesRes> getSecretShares({
     commitments.length,
   );
 
-  calloc.free(stringViewPointer.ref.ptr);
-  calloc.free(stringViewPointer);
-  calloc.free(commitmentsPointer);
-
   if (result.err != SUCCESS) {
     throw FrostdartException(errorCode: result.err);
   } else {
     return result.value;
   }
-}
+});
 
 ffi.Pointer<KeyGenRes> completeKeyGen({
   required ffi.Pointer<MultisigConfigWithName> multisigConfigWithName,
   required ffi.Pointer<SecretSharesRes> machineAndCommitments,
   required List<String> shares,
-}) {
-  ffi.Pointer<StringView> sharesPointer = calloc<StringView>(shares.length);
+}) => using((arena) {
+  ffi.Pointer<StringView> sharesPointer = arena<StringView>(shares.length);
 
   for (int i = 0; i < shares.length; i++) {
     final share = shares[i];
-    final stringViewPointer = calloc<StringView>();
-    stringViewPointer.ref.ptr = share.toNativeUtf8().cast<ffi.Uint8>();
-    stringViewPointer.ref.len = share.length;
+    final stringViewPointer = arena<StringView>();
+    stringViewPointer.ref.ptr = share
+        .toNativeUtf8(allocator: arena)
+        .cast<ffi.Uint8>();
+    stringViewPointer.ref.len = utf8.encode(share).length;
     sharesPointer[i] = stringViewPointer.ref;
   }
 
@@ -252,14 +246,12 @@ ffi.Pointer<KeyGenRes> completeKeyGen({
     shares.length,
   );
 
-  calloc.free(sharesPointer);
-
   if (result.err != SUCCESS) {
     throw FrostdartException(errorCode: result.err);
   } else {
     return result.value;
   }
-}
+});
 
 int getThresholdFromKeys({required String serializedKeys}) {
   final keysPointer = deserializeKeys(keys: serializedKeys);
@@ -276,36 +268,31 @@ int getParticipantIndexFromKeys({required String serializedKeys}) {
   return bindings.keys_index(keysPointer);
 }
 
-String serializeKeys({
-  required ffi.Pointer<ThresholdKeysWrapper> keys,
-}) {
+String serializeKeys({required ffi.Pointer<ThresholdKeysWrapper> keys}) {
   final ownedString = bindings.serialize_keys(keys);
   final string = ownedString.toDartString();
   freeOwnedString(ownedString);
   return string;
 }
 
-ffi.Pointer<ThresholdKeysWrapper> deserializeKeys({
-  required String keys,
-}) {
-  final stringViewPointer = calloc<StringView>();
-  stringViewPointer.ref.ptr = keys.toNativeUtf8().cast<ffi.Uint8>();
-  stringViewPointer.ref.len = keys.length;
+ffi.Pointer<ThresholdKeysWrapper> deserializeKeys({required String keys}) =>
+    using((arena) {
+      final stringViewPointer = arena<StringView>();
+      stringViewPointer.ref.ptr = keys
+          .toNativeUtf8(allocator: arena)
+          .cast<ffi.Uint8>();
+      stringViewPointer.ref.len = utf8.encode(keys).length;
 
-  final result = bindings.deserialize_keys(stringViewPointer.ref);
+      final result = bindings.deserialize_keys(stringViewPointer.ref);
 
-  calloc.free(stringViewPointer);
+      if (result.err != SUCCESS) {
+        throw FrostdartException(errorCode: result.err);
+      } else {
+        return result.value;
+      }
+    });
 
-  if (result.err != SUCCESS) {
-    throw FrostdartException(errorCode: result.err);
-  } else {
-    return result.value;
-  }
-}
-
-int signInputs({
-  required ffi.Pointer<SignConfig> signConfigPointer,
-}) {
+int signInputs({required ffi.Pointer<SignConfig> signConfigPointer}) {
   return bindings.sign_inputs(signConfigPointer);
 }
 
@@ -320,8 +307,10 @@ Output signInput({
     network: network,
     encodedSignConfig: signConfig,
   );
-  final ownedPortableOutputPointer =
-      bindings.sign_input(signConfigPointer, index);
+  final ownedPortableOutputPointer = bindings.sign_input(
+    signConfigPointer,
+    index,
+  );
 
   final hashPointer = bindings.output_hash(ownedPortableOutputPointer);
   final hash = hashPointer.asTypedList(HASH_BYTES_LENGTH);
@@ -330,10 +319,13 @@ Output signInput({
 
   final value = bindings.output_value(ownedPortableOutputPointer);
 
-  final scriptPubKeyLength =
-      bindings.output_script_pubkey_len(ownedPortableOutputPointer);
+  final scriptPubKeyLength = bindings.output_script_pubkey_len(
+    ownedPortableOutputPointer,
+  );
 
-  final scriptPubKeyPointer = bindings.output_hash(ownedPortableOutputPointer);
+  final scriptPubKeyPointer = bindings.output_script_pubkey(
+    ownedPortableOutputPointer,
+  );
   final scriptPubKey = scriptPubKeyPointer.asTypedList(scriptPubKeyLength);
 
   return Output(
@@ -345,9 +337,7 @@ Output signInput({
   );
 }
 
-int signPayments({
-  required ffi.Pointer<SignConfig> signConfigPointer,
-}) {
+int signPayments({required ffi.Pointer<SignConfig> signConfigPointer}) {
   return bindings.sign_payments(signConfigPointer);
 }
 
@@ -355,15 +345,10 @@ String signPaymentAddress({
   required ffi.Pointer<SignConfig> signConfigPointer,
   required int index,
 }) {
-  final stringView = bindings.sign_payment_address(
-    signConfigPointer,
-    index,
-  );
+  final stringView = bindings.sign_payment_address(signConfigPointer, index);
 
   final utf8Pointer = stringView.ptr.cast<Utf8>();
   final string = utf8Pointer.toDartString(length: stringView.len);
-
-  calloc.free(utf8Pointer);
 
   return string;
 }
@@ -408,24 +393,16 @@ int signPaymentAmount({
   return bindings.sign_payment_amount(signConfigPointer, index);
 }
 
-String signChange({
-  required ffi.Pointer<SignConfig> signConfigPointer,
-}) {
-  final stringView = bindings.sign_change(
-    signConfigPointer,
-  );
+String signChange({required ffi.Pointer<SignConfig> signConfigPointer}) {
+  final stringView = bindings.sign_change(signConfigPointer);
 
   final utf8Pointer = stringView.ptr.cast<Utf8>();
   final string = utf8Pointer.toDartString(length: stringView.len);
 
-  calloc.free(utf8Pointer);
-
   return string;
 }
 
-int signFeePerWeight({
-  required ffi.Pointer<SignConfig> signConfigPointer,
-}) {
+int signFeePerWeight({required ffi.Pointer<SignConfig> signConfigPointer}) {
   return bindings.sign_fee_per_weight(signConfigPointer);
 }
 
@@ -437,12 +414,12 @@ String newSignConfig({
   required List<int> paymentAmounts,
   required String change,
   required int feePerWeight,
-}) {
+}) => using((arena) {
   if (paymentAddresses.length != paymentAmounts.length) {
     throw Exception("paymentAddresses.length != paymentAmounts.length");
   }
 
-  final outputsPointer = calloc<PortableOutput>(outputs.length);
+  final outputsPointer = arena<PortableOutput>(outputs.length);
   for (int i = 0; i < outputs.length; i++) {
     outputsPointer[i].account = outputs[i].addressDerivationData!.account;
     outputsPointer[i].change = outputs[i].addressDerivationData!.change;
@@ -458,34 +435,32 @@ String newSignConfig({
     }
     outputsPointer[i].script_pubkey_len = outputs[i].scriptPubKey.length;
 
-    outputsPointer[i].script_pubkey =
-        calloc<ffi.Uint8>(outputsPointer[i].script_pubkey_len);
+    outputsPointer[i].script_pubkey = arena<ffi.Uint8>(
+      outputsPointer[i].script_pubkey_len,
+    );
     for (int j = 0; j < outputsPointer[i].script_pubkey_len; j++) {
       outputsPointer[i].script_pubkey[j] = outputs[i].scriptPubKey[j];
     }
   }
 
-  final paymentAddressesPointer = calloc<StringView>(
-    paymentAddresses.length,
-  );
+  final paymentAddressesPointer = arena<StringView>(paymentAddresses.length);
   for (int i = 0; i < paymentAddresses.length; i++) {
-    paymentAddressesPointer[i].len = paymentAddresses[i].length;
-    paymentAddressesPointer[i].ptr =
-        paymentAddresses[i].toNativeUtf8().cast<ffi.Uint8>();
+    paymentAddressesPointer[i].len = utf8.encode(paymentAddresses[i]).length;
+    paymentAddressesPointer[i].ptr = paymentAddresses[i]
+        .toNativeUtf8(allocator: arena)
+        .cast<ffi.Uint8>();
   }
 
-  final paymentAmountsPointer = calloc<ffi.Uint64>(paymentAmounts.length);
+  final paymentAmountsPointer = arena<ffi.Uint64>(paymentAmounts.length);
   for (int i = 0; i < paymentAmounts.length; i++) {
     paymentAmountsPointer[i] = paymentAmounts[i];
   }
 
-  final stringViewPointer = calloc<StringView>();
+  final stringViewPointer = arena<StringView>();
   stringViewPointer.ref.ptr = change
-      .toNativeUtf8(
-        allocator: calloc,
-      )
+      .toNativeUtf8(allocator: arena)
       .cast<ffi.Uint8>();
-  stringViewPointer.ref.len = change.length;
+  stringViewPointer.ref.len = utf8.encode(change).length;
 
   final result = bindings.new_sign_config(
     thresholdKeysWrapperPointer,
@@ -499,16 +474,6 @@ String newSignConfig({
     feePerWeight,
   );
 
-  for (int i = 0; i < outputs.length; i++) {
-    calloc.free(outputsPointer[i].script_pubkey);
-  }
-  calloc.free(outputsPointer);
-
-  calloc.free(paymentAddressesPointer);
-  calloc.free(paymentAmountsPointer);
-  calloc.free(stringViewPointer.ref.ptr);
-  calloc.free(stringViewPointer);
-
   if (result.err != SUCCESS) {
     throw FrostdartException(errorCode: result.err);
   } else {
@@ -516,20 +481,18 @@ String newSignConfig({
     freeOwnedString(result.value.ref.encoded);
     return string;
   }
-}
+});
 
 ffi.Pointer<SignConfig> decodeSignConfig({
   required ffi.Pointer<ThresholdKeysWrapper> thresholdKeysWrapperPointer,
   required int network,
   required String encodedSignConfig,
-}) {
-  final stringViewPointer = calloc<StringView>();
+}) => using((arena) {
+  final stringViewPointer = arena<StringView>();
   stringViewPointer.ref.ptr = encodedSignConfig
-      .toNativeUtf8(
-        allocator: calloc,
-      )
+      .toNativeUtf8(allocator: arena)
       .cast<ffi.Uint8>();
-  stringViewPointer.ref.len = encodedSignConfig.length;
+  stringViewPointer.ref.len = utf8.encode(encodedSignConfig).length;
 
   final result = bindings.decode_sign_config(
     thresholdKeysWrapperPointer,
@@ -537,15 +500,12 @@ ffi.Pointer<SignConfig> decodeSignConfig({
     stringViewPointer.ref,
   );
 
-  calloc.free(stringViewPointer.ref.ptr);
-  calloc.free(stringViewPointer);
-
   if (result.err != SUCCESS) {
     throw FrostdartException(errorCode: result.err);
   } else {
     return result.value;
   }
-}
+});
 
 ffi.Pointer<AttemptSignRes> attemptSign({
   required ffi.Pointer<ThresholdKeysWrapper> thresholdKeysWrapperPointer,
@@ -572,14 +532,12 @@ ffi.Pointer<AttemptSignRes> attemptSign({
 ffi.Pointer<ContinueSignRes> continueSign({
   required ffi.Pointer<TransactionSignMachineWrapper> machine,
   required List<String> preprocesses,
-}) {
-  final preprocessesPointer = calloc<StringView>(preprocesses.length);
+}) => using((arena) {
+  final preprocessesPointer = arena<StringView>(preprocesses.length);
   for (int i = 0; i < preprocesses.length; i++) {
-    preprocessesPointer[i].len = preprocesses[i].length;
+    preprocessesPointer[i].len = utf8.encode(preprocesses[i]).length;
     preprocessesPointer[i].ptr = preprocesses[i]
-        .toNativeUtf8(
-          allocator: calloc,
-        )
+        .toNativeUtf8(allocator: arena)
         .cast<ffi.Uint8>();
   }
 
@@ -589,44 +547,36 @@ ffi.Pointer<ContinueSignRes> continueSign({
     preprocesses.length,
   );
 
-  calloc.free(preprocessesPointer);
-
   if (result.err != SUCCESS) {
     throw FrostdartException(errorCode: result.err);
   } else {
     return result.value;
   }
-}
+});
 
 String completeSign({
   required ffi.Pointer<TransactionSignatureMachineWrapper> machine,
   required List<String> shares,
-}) {
-  final sharesPointer = calloc<StringView>(shares.length);
+}) => using((arena) {
+  final sharesPointer = arena<StringView>(shares.length);
   for (int i = 0; i < shares.length; i++) {
-    sharesPointer[i].len = shares[i].length;
+    sharesPointer[i].len = utf8.encode(shares[i]).length;
     sharesPointer[i].ptr = shares[i]
-        .toNativeUtf8(
-          allocator: calloc,
-        )
+        .toNativeUtf8(allocator: arena)
         .cast<ffi.Uint8>();
   }
 
-  final result = bindings.complete_sign(
-    machine,
-    sharesPointer,
-    shares.length,
-  );
+  final result = bindings.complete_sign(machine, sharesPointer, shares.length);
 
   if (result.err != SUCCESS) {
     throw FrostdartException(errorCode: result.err);
   } else {
     final ownedString = result.value.ref;
     final string = ownedString.toDartString();
-    freeOwnedString(ownedString);
+    freeOwnedString(result.value.ref);
     return string;
   }
-}
+});
 
 int resharerNewThreshold({
   required ffi.Pointer<ResharerConfig> resharerConfigPointer,
@@ -657,22 +607,21 @@ String resharerNewParticipant({
   required ffi.Pointer<ResharerConfig> resharerConfigPointer,
   required int index,
 }) {
-  final stringView =
-      bindings.resharer_new_participant(resharerConfigPointer, index);
+  final stringView = bindings.resharer_new_participant(
+    resharerConfigPointer,
+    index,
+  );
 
   final utf8Pointer = stringView.ptr.cast<Utf8>();
   final string = utf8Pointer.toDartString(length: stringView.len);
 
-  calloc.free(utf8Pointer);
-
   return string;
 }
 
-Uint8List resharerSalt({
-  required String resharerConfig,
-}) {
-  final resharerConfigPointer =
-      decodeResharerConfig(resharerConfig: resharerConfig);
+Uint8List resharerSalt({required String resharerConfig}) {
+  final resharerConfigPointer = decodeResharerConfig(
+    resharerConfig: resharerConfig,
+  );
   final uint8Pointer = bindings.resharer_salt(resharerConfigPointer);
   final bytes = uint8Pointer.asTypedList(SALT_BYTES_LENGTH);
 
@@ -683,22 +632,24 @@ String newResharerConfig({
   required int newThreshold,
   required List<int> resharers,
   required List<String> newParticipants,
-}) {
-  ffi.Pointer<ffi.Uint16> resharersPointer =
-      calloc<ffi.Uint16>(resharers.length);
+}) => using((arena) {
+  ffi.Pointer<ffi.Uint16> resharersPointer = arena<ffi.Uint16>(
+    resharers.length,
+  );
 
   for (int i = 0; i < resharers.length; i++) {
     resharersPointer[i] = resharers[i];
   }
 
-  ffi.Pointer<StringView> newParticipantsPointer = calloc<StringView>(
+  ffi.Pointer<StringView> newParticipantsPointer = arena<StringView>(
     newParticipants.length,
   );
 
   for (int i = 0; i < newParticipants.length; i++) {
-    newParticipantsPointer[i].len = newParticipants[i].length;
-    newParticipantsPointer[i].ptr =
-        newParticipants[i].toNativeUtf8().cast<ffi.Uint8>();
+    newParticipantsPointer[i].len = utf8.encode(newParticipants[i]).length;
+    newParticipantsPointer[i].ptr = newParticipants[i]
+        .toNativeUtf8(allocator: arena)
+        .cast<ffi.Uint8>();
   }
 
   final result = bindings.new_resharer_config(
@@ -709,9 +660,6 @@ String newResharerConfig({
     newParticipants.length,
   );
 
-  calloc.free(resharersPointer);
-  calloc.free(newParticipantsPointer);
-
   if (result.err != SUCCESS) {
     throw FrostdartException(errorCode: result.err);
   } else {
@@ -719,26 +667,25 @@ String newResharerConfig({
     freeOwnedString(result.value.ref.encoded);
     return string;
   }
-}
+});
 
 ffi.Pointer<ResharerConfig> decodeResharerConfig({
   required String resharerConfig,
-}) {
-  final stringViewPointer = calloc<StringView>();
-  stringViewPointer.ref.ptr = resharerConfig.toNativeUtf8().cast<ffi.Uint8>();
-  stringViewPointer.ref.len = resharerConfig.length;
+}) => using((arena) {
+  final stringViewPointer = arena<StringView>();
+  stringViewPointer.ref.ptr = resharerConfig
+      .toNativeUtf8(allocator: arena)
+      .cast<ffi.Uint8>();
+  stringViewPointer.ref.len = utf8.encode(resharerConfig).length;
 
   final result = bindings.decode_resharer_config(stringViewPointer.ref);
-
-  calloc.free(stringViewPointer.ref.ptr);
-  calloc.free(stringViewPointer);
 
   if (result.err != SUCCESS) {
     throw FrostdartException(errorCode: result.err);
   } else {
     return result.value;
   }
-}
+});
 
 ({ffi.Pointer<StartResharerRes> machine, String encoded}) startResharer({
   required String serializedKeys,
@@ -766,26 +713,31 @@ ffi.Pointer<ResharerConfig> decodeResharerConfig({
   required String resharerConfig,
   required String myName,
   required List<String> resharerStarts,
-}) {
-  final newMultisigNamePointer = calloc<StringView>();
-  newMultisigNamePointer.ref.ptr = myName.toNativeUtf8().cast<ffi.Uint8>();
-  newMultisigNamePointer.ref.len = myName.length;
+}) => using((arena) {
+  final newMultisigNamePointer = arena<StringView>();
+  newMultisigNamePointer.ref.ptr = newMultisigName
+      .toNativeUtf8(allocator: arena)
+      .cast<ffi.Uint8>();
+  newMultisigNamePointer.ref.len = utf8.encode(newMultisigName).length;
 
-  final myNamePointer = calloc<StringView>();
-  myNamePointer.ref.ptr = myName.toNativeUtf8().cast<ffi.Uint8>();
-  myNamePointer.ref.len = myName.length;
+  final myNamePointer = arena<StringView>();
+  myNamePointer.ref.ptr = myName
+      .toNativeUtf8(allocator: arena)
+      .cast<ffi.Uint8>();
+  myNamePointer.ref.len = utf8.encode(myName).length;
 
   final resharerConfigPointer = decodeResharerConfig(
     resharerConfig: resharerConfig,
   );
 
-  ffi.Pointer<StringView> resharerStartsPointer = calloc<StringView>(
+  ffi.Pointer<StringView> resharerStartsPointer = arena<StringView>(
     resharerStarts.length,
   );
   for (int i = 0; i < resharerStarts.length; i++) {
-    resharerStartsPointer[i].len = resharerStarts[i].length;
-    resharerStartsPointer[i].ptr =
-        resharerStarts[i].toNativeUtf8().cast<ffi.Uint8>();
+    resharerStartsPointer[i].len = utf8.encode(resharerStarts[i]).length;
+    resharerStartsPointer[i].ptr = resharerStarts[i]
+        .toNativeUtf8(allocator: arena)
+        .cast<ffi.Uint8>();
   }
 
   final result = bindings.start_reshared(
@@ -795,12 +747,6 @@ ffi.Pointer<ResharerConfig> decodeResharerConfig({
     resharerStartsPointer,
   );
 
-  calloc.free(resharerStartsPointer);
-  calloc.free(newMultisigNamePointer.ref.ptr);
-  calloc.free(newMultisigNamePointer);
-  calloc.free(myNamePointer.ref.ptr);
-  calloc.free(myNamePointer);
-
   if (result.err != SUCCESS) {
     throw FrostdartException(errorCode: result.err);
   } else {
@@ -809,30 +755,29 @@ ffi.Pointer<ResharerConfig> decodeResharerConfig({
 
     return (machine: result.value, encoded: string);
   }
-}
+});
 
 /// expects [encryptionKeysOfResharedTo] of length equal to new participants
 String completeResharer({
   required StartResharerRes machine,
   required List<String> encryptionKeysOfResharedTo,
-}) {
-  ffi.Pointer<StringView> encryptionKeysOfResharedToPointer =
-      calloc<StringView>(
+}) => using((arena) {
+  ffi.Pointer<StringView> encryptionKeysOfResharedToPointer = arena<StringView>(
     encryptionKeysOfResharedTo.length,
   );
   for (int i = 0; i < encryptionKeysOfResharedTo.length; i++) {
-    encryptionKeysOfResharedToPointer[i].len =
-        encryptionKeysOfResharedTo[i].length;
-    encryptionKeysOfResharedToPointer[i].ptr =
-        encryptionKeysOfResharedTo[i].toNativeUtf8().cast<ffi.Uint8>();
+    encryptionKeysOfResharedToPointer[i].len = utf8
+        .encode(encryptionKeysOfResharedTo[i])
+        .length;
+    encryptionKeysOfResharedToPointer[i].ptr = encryptionKeysOfResharedTo[i]
+        .toNativeUtf8(allocator: arena)
+        .cast<ffi.Uint8>();
   }
 
   final result = bindings.complete_resharer(
     machine,
     encryptionKeysOfResharedToPointer,
   );
-
-  calloc.free(encryptionKeysOfResharedToPointer);
 
   if (result.err != SUCCESS) {
     throw FrostdartException(errorCode: result.err);
@@ -841,32 +786,25 @@ String completeResharer({
     freeOwnedString(result.value.ref);
     return string;
   }
-}
+});
 
 /// expects [resharerCompletes] of length equal to resharers
-({
-  String multisigConfig,
-  String serializedKeys,
-  String resharedId,
-}) completeReshared({
+({String multisigConfig, String serializedKeys, String resharedId})
+completeReshared({
   required StartResharedRes prior,
   required List<String> resharerCompletes,
-}) {
-  ffi.Pointer<StringView> resharerCompletesPointer = calloc<StringView>(
+}) => using((arena) {
+  ffi.Pointer<StringView> resharerCompletesPointer = arena<StringView>(
     resharerCompletes.length,
   );
   for (int i = 0; i < resharerCompletes.length; i++) {
-    resharerCompletesPointer[i].len = resharerCompletes[i].length;
-    resharerCompletesPointer[i].ptr =
-        resharerCompletes[i].toNativeUtf8().cast<ffi.Uint8>();
+    resharerCompletesPointer[i].len = utf8.encode(resharerCompletes[i]).length;
+    resharerCompletesPointer[i].ptr = resharerCompletes[i]
+        .toNativeUtf8(allocator: arena)
+        .cast<ffi.Uint8>();
   }
 
-  final result = bindings.complete_reshared(
-    prior,
-    resharerCompletesPointer,
-  );
-
-  calloc.free(resharerCompletesPointer);
+  final result = bindings.complete_reshared(prior, resharerCompletesPointer);
 
   if (result.err != SUCCESS) {
     throw FrostdartException(errorCode: result.err);
@@ -874,13 +812,11 @@ String completeResharer({
     final id = result.value.ref.id.toDartString();
     freeOwnedString(result.value.ref.id);
     return (
-      serializedKeys: serializeKeys(
-        keys: result.value.ref.keys,
-      ),
+      serializedKeys: serializeKeys(keys: result.value.ref.keys),
       multisigConfig: encodeMultisigConfig(
         multisigConfigPointer: result.value.ref.config,
       ),
       resharedId: id,
     );
   }
-}
+});
