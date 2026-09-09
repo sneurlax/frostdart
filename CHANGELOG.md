@@ -5,6 +5,7 @@
 
 * Correct the script-pubkey ABI and avoid freeing Rust boxes in Dart.
 * Fix borrowed-string ownership, UTF-8 marshalling and configuration accessors.
+* Validate FFI indexes, network values and resharing message counts.
 
 ## 0.0.1
 

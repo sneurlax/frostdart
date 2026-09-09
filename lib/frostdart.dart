@@ -48,6 +48,7 @@ String multisigParticipant({
   final multisigConfigPointer = decodeMultisigConfig(
     multisigConfig: multisigConfig,
   );
+  _checkIndex(index, bindings.multisig_participants(multisigConfigPointer));
   final stringView = bindings.multisig_participant(
     multisigConfigPointer,
     index,
@@ -91,6 +92,13 @@ String newMultisigConfig({
   required int threshold,
   required List<String> participants,
 }) => using((arena) {
+  RangeError.checkValueInInterval(threshold, 0, 65535, 'threshold');
+  RangeError.checkValueInInterval(
+    participants.length,
+    0,
+    65535,
+    'participants.length',
+  );
   ffi.Pointer<ffi.Uint8> multisigName = name
       .toNativeUtf8(allocator: arena)
       .cast<ffi.Uint8>();
@@ -307,6 +315,7 @@ Output signInput({
     network: network,
     encodedSignConfig: signConfig,
   );
+  _checkIndex(index, bindings.sign_inputs(signConfigPointer));
   final ownedPortableOutputPointer = bindings.sign_input(
     signConfigPointer,
     index,
@@ -345,6 +354,7 @@ String signPaymentAddress({
   required ffi.Pointer<SignConfig> signConfigPointer,
   required int index,
 }) {
+  _checkIndex(index, bindings.sign_payments(signConfigPointer));
   final stringView = bindings.sign_payment_address(signConfigPointer, index);
 
   final utf8Pointer = stringView.ptr.cast<Utf8>();
@@ -359,6 +369,7 @@ String addressForKeys({
   required AddressDerivationData addressDerivationData,
   required bool secure,
 }) {
+  _checkNetwork(network);
   final result = bindings.address_for_keys(
     network,
     keys,
@@ -390,6 +401,7 @@ int signPaymentAmount({
   required ffi.Pointer<SignConfig> signConfigPointer,
   required int index,
 }) {
+  _checkIndex(index, bindings.sign_payments(signConfigPointer));
   return bindings.sign_payment_amount(signConfigPointer, index);
 }
 
@@ -415,10 +427,20 @@ String newSignConfig({
   required String change,
   required int feePerWeight,
 }) => using((arena) {
+  _checkNetwork(network);
   if (paymentAddresses.length != paymentAmounts.length) {
     throw Exception("paymentAddresses.length != paymentAmounts.length");
   }
 
+  for (final output in outputs) {
+    if (output.hash.length != HASH_BYTES_LENGTH) {
+      throw ArgumentError.value(
+        output.hash.length,
+        'output.hash.length',
+        'Expected 32 bytes',
+      );
+    }
+  }
   final outputsPointer = arena<PortableOutput>(outputs.length);
   for (int i = 0; i < outputs.length; i++) {
     outputsPointer[i].account = outputs[i].addressDerivationData!.account;
@@ -488,6 +510,7 @@ ffi.Pointer<SignConfig> decodeSignConfig({
   required int network,
   required String encodedSignConfig,
 }) => using((arena) {
+  _checkNetwork(network);
   final stringViewPointer = arena<StringView>();
   stringViewPointer.ref.ptr = encodedSignConfig
       .toNativeUtf8(allocator: arena)
@@ -594,6 +617,7 @@ int resharerResharer({
   required ffi.Pointer<ResharerConfig> resharerConfigPointer,
   required int index,
 }) {
+  _checkIndex(index, bindings.resharer_resharers(resharerConfigPointer));
   return bindings.resharer_resharer(resharerConfigPointer, index);
 }
 
@@ -607,6 +631,7 @@ String resharerNewParticipant({
   required ffi.Pointer<ResharerConfig> resharerConfigPointer,
   required int index,
 }) {
+  _checkIndex(index, bindings.resharer_new_participants(resharerConfigPointer));
   final stringView = bindings.resharer_new_participant(
     resharerConfigPointer,
     index,
@@ -633,6 +658,22 @@ String newResharerConfig({
   required List<int> resharers,
   required List<String> newParticipants,
 }) => using((arena) {
+  RangeError.checkValueInInterval(newThreshold, 0, 65535, 'newThreshold');
+  RangeError.checkValueInInterval(
+    newParticipants.length,
+    0,
+    65535,
+    'newParticipants.length',
+  );
+  RangeError.checkValueInInterval(
+    resharers.length,
+    0,
+    65535,
+    'resharers.length',
+  );
+  for (final index in resharers) {
+    RangeError.checkValueInInterval(index, 0, 65534, 'resharer');
+  }
   ffi.Pointer<ffi.Uint16> resharersPointer = arena<ffi.Uint16>(
     resharers.length,
   );
@@ -730,6 +771,11 @@ ffi.Pointer<ResharerConfig> decodeResharerConfig({
     resharerConfig: resharerConfig,
   );
 
+  _checkCount(
+    resharerStarts.length,
+    bindings.resharer_resharers(resharerConfigPointer),
+    'resharerStarts',
+  );
   ffi.Pointer<StringView> resharerStartsPointer = arena<StringView>(
     resharerStarts.length,
   );
@@ -762,6 +808,11 @@ String completeResharer({
   required StartResharerRes machine,
   required List<String> encryptionKeysOfResharedTo,
 }) => using((arena) {
+  _checkCount(
+    encryptionKeysOfResharedTo.length,
+    machine.new_participants_len,
+    'encryptionKeysOfResharedTo',
+  );
   ffi.Pointer<StringView> encryptionKeysOfResharedToPointer = arena<StringView>(
     encryptionKeysOfResharedTo.length,
   );
@@ -794,6 +845,11 @@ completeReshared({
   required StartResharedRes prior,
   required List<String> resharerCompletes,
 }) => using((arena) {
+  _checkCount(
+    resharerCompletes.length,
+    prior.resharers_len,
+    'resharerCompletes',
+  );
   ffi.Pointer<StringView> resharerCompletesPointer = arena<StringView>(
     resharerCompletes.length,
   );
@@ -820,3 +876,24 @@ completeReshared({
     );
   }
 });
+
+void _checkIndex(int index, int length) {
+  if (index < 0 || index >= length) {
+    throw RangeError.index(index, null, 'index', null, length);
+  }
+}
+
+void _checkCount(int actual, int expected, String name) {
+  if (actual != expected) {
+    throw ArgumentError.value(actual, name, 'Expected $expected messages');
+  }
+}
+
+void _checkNetwork(int network) {
+  RangeError.checkValueInInterval(
+    network,
+    Network.Mainnet,
+    Network.Regtest,
+    'network',
+  );
+}

@@ -82,6 +82,20 @@ void main() {
           ),
         )
         .toList();
+    for (final bad in [
+      <String>[],
+      ['', '', ''],
+    ]) {
+      expect(
+        () => startReshared(
+          newMultisigName: 'wallet',
+          resharerConfig: reshareConfig,
+          myName: newNames[0],
+          resharerStarts: bad,
+        ),
+        throwsArgumentError,
+      );
+    }
     final newStarts = newNames
         .map(
           (name) => startReshared(
@@ -100,6 +114,25 @@ void main() {
           ),
         ),
         '次の財布🔑',
+      );
+    }
+    for (final bad in [
+      <String>[],
+      ['', '', ''],
+    ]) {
+      expect(
+        () => completeResharer(
+          machine: oldStarts[0].machine.ref,
+          encryptionKeysOfResharedTo: bad,
+        ),
+        throwsArgumentError,
+      );
+      expect(
+        () => completeReshared(
+          prior: newStarts[0].machine.ref,
+          resharerCompletes: bad,
+        ),
+        throwsArgumentError,
       );
     }
     final oldCompletes = oldStarts
