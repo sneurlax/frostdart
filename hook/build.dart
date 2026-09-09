@@ -25,8 +25,8 @@ Future<void> main(List<String> args) async {
       (OS.linux, Architecture.x64) => 'x86_64-unknown-linux-gnu',
       (OS.windows, Architecture.x64) => 'x86_64-pc-windows-msvc',
       _ => throw UnsupportedError(
-          'Unsupported target: ${config.targetOS}/${config.targetArchitecture}',
-        ),
+        'Unsupported target: ${config.targetOS}/${config.targetArchitecture}',
+      ),
     };
     final workspace = input.packageRoot.resolve('src/serai/');
     final crate = workspace.resolve('hrf/');
@@ -51,8 +51,9 @@ Future<void> main(List<String> args) async {
       final ndkTarget = target.replaceFirst('armv7-', 'armv7a-');
       final api = config.android.targetNdkApi;
       final suffix = Platform.isWindows ? '.cmd' : '';
-      final cc =
-          compiler.compiler.resolve('$ndkTarget$api-clang$suffix').toFilePath();
+      final cc = compiler.compiler
+          .resolve('$ndkTarget$api-clang$suffix')
+          .toFilePath();
       environment.addAll({
         'CC_$targetVariable': cc,
         'CXX_$targetVariable': compiler.compiler
@@ -65,8 +66,10 @@ Future<void> main(List<String> args) async {
       environment.addAll({
         'CC_$targetVariable': config.cCompiler!.compiler.toFilePath(),
         'AR_$targetVariable': config.cCompiler!.archiver.toFilePath(),
-        'CARGO_TARGET_${targetVariable.toUpperCase()}_LINKER':
-            config.cCompiler!.compiler.toFilePath(),
+        'CARGO_TARGET_${targetVariable.toUpperCase()}_LINKER': config
+            .cCompiler!
+            .compiler
+            .toFilePath(),
       });
     }
 
@@ -128,8 +131,7 @@ Future<void> main(List<String> args) async {
     await track(Directory.fromUri(workspace));
     final linkMode = switch (config.linkModePreference) {
       LinkModePreference.static ||
-      LinkModePreference.preferStatic =>
-        StaticLinking(),
+      LinkModePreference.preferStatic => StaticLinking(),
       _ => DynamicLoadingBundled(),
     };
     final library = config.targetOS.libraryFileName('hrf_api', linkMode);
@@ -150,18 +152,31 @@ Future<void> run(
   Uri directory,
   Map<String, String> environment,
 ) async {
-  final process = await Process.start(
-    executable,
-    arguments,
-    workingDirectory: directory.toFilePath(),
-    environment: environment,
-  );
-  await Future.wait([
-    process.stdout.forEach(stderr.add),
-    process.stderr.forEach(stderr.add),
-  ]);
-  final code = await process.exitCode;
-  if (code != 0) {
-    throw ProcessException(executable, arguments, 'Native build failed', code);
+  final ProcessResult result;
+  try {
+    result = await Process.run(
+      executable,
+      arguments,
+      workingDirectory: directory.toFilePath(),
+      environment: environment,
+    );
+  } on ProcessException catch (error) {
+    if (executable != 'rustup') rethrow;
+    throw StateError(
+      'frostdart requires Rust installed with rustup. Install rustup and put it '
+      'on PATH, then retry the build. Unable to run rustup: ${error.message}',
+    );
+  }
+  // Send successful output to stdout to avoid Flutter error diagnostics.
+  final sink = result.exitCode == 0 ? stdout : stderr;
+  sink.write(result.stdout);
+  sink.write(result.stderr);
+  if (result.exitCode != 0) {
+    throw ProcessException(
+      executable,
+      arguments,
+      'Native build failed',
+      result.exitCode,
+    );
   }
 }
