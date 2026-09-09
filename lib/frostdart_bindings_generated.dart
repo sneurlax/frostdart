@@ -282,7 +282,7 @@ external int resharer_resharers(ffi.Pointer<ResharerConfig> self);
 external ffi.Pointer<ffi.Uint8> resharer_salt(ffi.Pointer<ResharerConfig> self);
 
 @ffi.Native<
-  OwnedString Function(
+  CResult_OwnedString Function(
     ffi.Pointer<ThresholdKeysWrapper>,
     ffi.Uint32,
     ffi.Uint32,
@@ -290,7 +290,7 @@ external ffi.Pointer<ffi.Uint8> resharer_salt(ffi.Pointer<ResharerConfig> self);
     ffi.Bool,
   )
 >()
-external OwnedString script_pubkey_for_keys(
+external CResult_OwnedString script_pubkey_for_keys(
   ffi.Pointer<ThresholdKeysWrapper> keys,
   int account,
   int address,
@@ -634,6 +634,8 @@ const int INVALID_AMOUNT_OF_COMMITMENTS_ERROR = 46;
 const int INVALID_AMOUNT_OF_SHARES_ERROR = 48;
 
 const int INVALID_COMMITMENTS_ERROR = 47;
+
+const int INVALID_DERIVATION_ERROR = 72;
 
 const int INVALID_ENCODING_ERROR = 22;
 

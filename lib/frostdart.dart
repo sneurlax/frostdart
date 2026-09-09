@@ -388,7 +388,6 @@ String addressForKeys({
     final ownedString = result.value.ref;
     final string = ownedString.toDartString();
     freeOwnedString(ownedString);
-    calloc.free(result.value);
     return string;
   }
 }
