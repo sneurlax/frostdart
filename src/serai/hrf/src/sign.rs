@@ -406,8 +406,7 @@ fn attempt_sign_rust(
   keys: &ThresholdKeysWrapper,
   config: &SignConfig,
 ) -> Result<AttemptSignRes, u8> {
-  let (machine, preprocesses) = sign_config_to_tx(keys, config.network, config)
-    .expect("created a SignConfig which couldn't create a TX")
+  let (machine, preprocesses) = sign_config_to_tx(keys, config.network, config)?
     .multisig(tweak_keys(&keys.0), RecommendedTranscript::new(b"HRF Sign Transaction"))
     .ok_or(WRONG_KEYS_ERROR)?
     .preprocess(&mut OsRng);
@@ -495,4 +494,27 @@ fn complete_sign_rust(
   let mut buf = Vec::with_capacity(1024);
   tx.consensus_encode(&mut buf).unwrap();
   Ok(OwnedString::new(hex::encode(buf)))
+}
+
+#[cfg(test)]
+mod ffi_error_tests {
+  use super::*;
+
+  #[test]
+  fn invalid_sign_config_returns_error() {
+    // FROST secp256k1 vector, participant 1.
+    let serialized = concat!(
+      "09000000736563703235366b31020003000100",
+      "08f89ffe80ac94dcb920c26f3f46140bfc7f95b493f8310f5fc1ea2b01f4254c",
+      "026baee4bf7d4b9c4567dfff6f3c2c76df5c082e9320cd8187d6ab5965bc5a119a",
+      "03dacc9463e5186f3c81ae1b314f7b09001a22b28bb56ad0abd3f376818f9604ab",
+      "031404710e938032db0d4f6a4cd20ae37384be98ba9fe05b42d139361202b391e6",
+    );
+    let keys = unsafe { crate::key_gen::deserialize_keys(StringView::new(serialized)) }.value.unwrap();
+    let config = SignConfig {
+      network: BNetwork::Regtest, inputs: vec![], payments: vec![],
+      change: "invalid".into(), fee_per_weight: 1,
+    };
+    assert_eq!(attempt_sign(&keys, &config).err, INVALID_ADDRESS_ERROR);
+  }
 }

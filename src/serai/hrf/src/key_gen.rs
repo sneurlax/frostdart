@@ -346,7 +346,7 @@ fn get_secret_shares_rust(
   secret_shares_rng.append_message(b"context", config.config.context().as_bytes());
   let mut secret_shares_rng = ChaCha20Rng::from_seed(secret_shares_rng.rng_seed(b"rng"));
 
-  let params = config.params().unwrap();
+  let params = config.params()?;
 
   let commitments = unsafe { std::slice::from_raw_parts(commitments, commitments_len) };
   if commitments.len() != config.config.participants.len() {
@@ -420,7 +420,7 @@ unsafe fn complete_key_gen_rust(
   shares: *const StringView,
   shares_len: usize,
 ) -> Result<KeyGenRes, u8> {
-  let params = config.params().unwrap();
+  let params = config.params()?;
   let SecretSharesRes { machine, internal_commitments: commitments, .. } = machine_and_commitments;
 
   if shares_len != config.config.participants.len() {
@@ -522,4 +522,52 @@ pub unsafe extern "C" fn deserialize_keys(keys: StringView) -> CResult<Threshold
     return CResult::new(Err(UNKNOWN_ERROR));
   };
   CResult::new(Ok(ThresholdKeysWrapper(keys.into())))
+}
+
+#[cfg(test)]
+mod ffi_error_tests {
+  use super::*;
+
+  fn start() -> StartKeyGenRes {
+    start_key_gen_rust(
+      Box::new(MultisigConfig {
+        multisig_name: "wallet".into(),
+        threshold: 1,
+        participants: vec!["alice".into()],
+        salt: [0; 32],
+      }),
+      StringView::new("alice"),
+      LANGUAGE_ENGLISH,
+    ).unwrap()
+  }
+
+  #[test]
+  fn invalid_config_during_secret_shares_returns_error() {
+    let mut start = start();
+    start.config.my_name = Box::new("unknown".into());
+    let result = unsafe { get_secret_shares(
+      &start.config, LANGUAGE_ENGLISH,
+      StringView { ptr: start.seed.ptr, len: start.seed.len },
+      start.machine, [].as_ptr(), 0,
+    ) };
+    assert_eq!(result.err, INVALID_PARTICIPANT_ERROR);
+    start.seed.free_owned_string();
+    start.commitments.free_owned_string();
+  }
+
+  #[test]
+  fn invalid_config_during_completion_returns_error() {
+    let mut start = start();
+    let commitments = [StringView { ptr: start.commitments.ptr, len: start.commitments.len }];
+    let shares = get_secret_shares_rust(
+      &start.config, LANGUAGE_ENGLISH,
+      StringView { ptr: start.seed.ptr, len: start.seed.len },
+      start.machine, commitments.as_ptr(), commitments.len(),
+    ).unwrap();
+    start.config.my_name = Box::new("unknown".into());
+    let result = unsafe { complete_key_gen(&start.config, shares, [].as_ptr(), 0) };
+    assert_eq!(result.err, INVALID_PARTICIPANT_ERROR);
+    start.seed.free_owned_string();
+    start.commitments.free_owned_string();
+  }
 }
