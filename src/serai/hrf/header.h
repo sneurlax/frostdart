@@ -67,6 +67,8 @@
 
 #define FEE_ERROR 71
 
+#define INVALID_DERIVATION_ERROR 72
+
 #define INVALID_PARTICIPANTS_AMOUNT_ERROR 81
 
 #define DUPLICATED_PARTICIPANT_ERROR 82
@@ -179,6 +181,11 @@ typedef struct CResult_ThresholdKeysWrapper {
   uint8_t err;
 } CResult_ThresholdKeysWrapper;
 
+typedef struct CResult_OwnedString {
+  struct OwnedString *value;
+  uint8_t err;
+} CResult_OwnedString;
+
 typedef struct SignConfigRes {
   struct SignConfig *config;
   struct OwnedString encoded;
@@ -225,11 +232,6 @@ typedef struct CResult_ContinueSignRes {
   struct ContinueSignRes *value;
   uint8_t err;
 } CResult_ContinueSignRes;
-
-typedef struct CResult_OwnedString {
-  struct OwnedString *value;
-  uint8_t err;
-} CResult_OwnedString;
 
 typedef struct ResharerConfigRes {
   struct ResharerConfig *config;
@@ -287,6 +289,12 @@ extern "C" {
 
 void free_owned_string(struct OwnedString self);
 
+/**
+ * Frees a boxed string result, including its buffer.
+ * Do not also call free_owned_string.
+ */
+void free_boxed_owned_string(struct OwnedString *value);
+
 struct StringView multisig_name(const struct MultisigConfig *self);
 
 uint16_t multisig_threshold(const struct MultisigConfig *self);
@@ -337,9 +345,18 @@ struct OwnedString serialize_keys(const struct ThresholdKeysWrapper *keys);
 
 struct CResult_ThresholdKeysWrapper deserialize_keys(struct StringView keys);
 
-struct CResult_OwnedString address_for_keys(enum Network network, const struct ThresholdKeysWrapper *keys, uint32_t account, uint32_t address, bool change, bool secure);
+struct CResult_OwnedString address_for_keys(enum Network network,
+                                            const struct ThresholdKeysWrapper *keys,
+                                            uint32_t account,
+                                            uint32_t address,
+                                            bool change,
+                                            bool secure);
 
-struct OwnedString script_pubkey_for_keys(const struct ThresholdKeysWrapper *keys, uint32_t account, uint32_t address, bool change, bool secure);
+struct CResult_OwnedString script_pubkey_for_keys(const struct ThresholdKeysWrapper *keys,
+                                                  uint32_t account,
+                                                  uint32_t address,
+                                                  bool change,
+                                                  bool secure);
 
 const uint8_t *output_hash(const struct OwnedPortableOutput *self);
 
@@ -376,7 +393,8 @@ struct CResult_SignConfigRes new_sign_config(const struct ThresholdKeysWrapper *
                                              uint64_t fee_per_weight);
 
 struct CResult_SignConfig decode_sign_config(const struct ThresholdKeysWrapper *keys,
-                                             enum Network network, struct StringView encoded);
+                                             enum Network network,
+                                             struct StringView encoded);
 
 struct CResult_AttemptSignRes attempt_sign(const struct ThresholdKeysWrapper *keys,
                                            const struct SignConfig *config);

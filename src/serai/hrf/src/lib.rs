@@ -99,3 +99,22 @@ impl<T> CResult<T> {
 }
 
 pub struct ThresholdKeysWrapper(frost::dkg::ThresholdKeys<ciphersuite::Secp256k1>);
+
+/// Frees a boxed string result, including its buffer.
+/// Do not also call free_owned_string.
+#[no_mangle]
+pub extern "C" fn free_boxed_owned_string(value: Box<OwnedString>) {
+  (*value).free_owned_string();
+}
+
+#[cfg(test)]
+mod string_tests {
+  use super::*;
+
+  #[test]
+  fn boxed_strings_are_freed() {
+    for text in [String::new(), "wallet".into(), "é 日本語".into(), "x".repeat(4096)] {
+      free_boxed_owned_string(Box::new(OwnedString::new(text)));
+    }
+  }
+}
