@@ -16,6 +16,22 @@
         "type": "github"
       }
     },
+    "kit": {
+      "inputs": {
+        "nixpkgs": "nixpkgs",
+        "rust-overlay": "rust-overlay",
+        "zig-overlay": "zig-overlay"
+      },
+      "locked": {
+        "narHash": "sha256-93i5lGRoE384kLTMwMwUAhFioh5kwi3yTrWoS9II45I=",
+        "path": "/home/user/src/stack_wallet/wt/native-build-kit",
+        "type": "path"
+      },
+      "original": {
+        "path": "/home/user/src/stack_wallet/wt/native-build-kit",
+        "type": "path"
+      }
+    },
     "nixpkgs": {
       "locked": {
         "lastModified": 1792210252,
@@ -34,14 +50,25 @@
     },
     "root": {
       "inputs": {
-        "nixpkgs": "nixpkgs",
-        "rust-overlay": "rust-overlay",
-        "zig-overlay": "zig-overlay"
+        "kit": "kit",
+        "nixpkgs": [
+          "kit",
+          "nixpkgs"
+        ],
+        "rust-overlay": [
+          "kit",
+          "rust-overlay"
+        ],
+        "zig-overlay": [
+          "kit",
+          "zig-overlay"
+        ]
       }
     },
     "rust-overlay": {
       "inputs": {
         "nixpkgs": [
+          "kit",
           "nixpkgs"
         ]
       },
@@ -79,6 +106,7 @@
       "inputs": {
         "flake-compat": "flake-compat",
         "nixpkgs": [
+          "kit",
           "nixpkgs"
         ],
         "systems": "systems"

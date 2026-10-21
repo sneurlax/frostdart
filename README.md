@@ -60,8 +60,10 @@ the release is only published when both hosts succeed and agree.
 
 ### Reference builds with Nix
 
-`flake.nix` builds every non-Apple target in a sandbox from toolchains pinned
-by hash: the official Rust and zig releases, lld from nixpkgs for the Windows
+`flake.nix` builds every non-Apple target in a sandbox through
+[native-build-kit](https://github.com/cypherstack/native-build-kit)'s
+`mkCargoLibrary`, whose nixpkgs, Rust and zig pins it follows. The toolchains
+are pinned by hash: the official Rust and zig releases, lld from nixpkgs for the Windows
 link, the Windows SDK fetched by xwin from a pinned manifest, and the Android
 NDK. The versions live in `build-config.json` under `toolchains`.
 
