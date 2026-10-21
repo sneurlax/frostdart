@@ -43,6 +43,13 @@ Only dynamic libraries are provided, built for macOS 12, iOS 15, Android API
 24, and glibc 2.28 at minimum. The floors, the canonical path prefixes, and
 the toolchain versions live in `build-config.json`.
 
+`hook/build.dart` is a thin call into the `native_prebuilt_hook` package from
+[native-build-kit](https://github.com/cypherstack/native-build-kit), which
+implements the three modes for every plugin built with the kit. Source and dev
+builds read a git checkout (a clone or a worktree) as a git flake, so only
+tracked files are inputs, and a package in the pub cache as a plain path.
+They need Nix, so on Windows only the prebuilt mode works outside WSL2.
+
 ### Native releases
 
 Pushing a `native-<version>` tag runs `.github/workflows/native-release.yml`:

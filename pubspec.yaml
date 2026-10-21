@@ -8,9 +8,8 @@ environment:
 
 dependencies:
   ffi: ^2.0.1
-  hooks: ^2.2.0
-  code_assets: ^1.2.1
-  crypto: ^3.0.7
+  native_prebuilt_hook:
+    path: ../native-build-kit/dart/native_prebuilt_hook
 
 dev_dependencies:
   test: ^1.26.3

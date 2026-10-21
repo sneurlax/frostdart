@@ -1,8 +1,8 @@
 import 'dart:io';
 
+import 'package:native_prebuilt_hook/native_prebuilt_hook.dart';
 import 'package:test/test.dart';
 
-import '../hook/prebuilt.dart';
 import '../tool/write_prebuilt_hashes.dart';
 
 void main() {
