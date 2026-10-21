@@ -4,7 +4,7 @@
   inputs = {
     # The build itself lives in the kit; it also pins nixpkgs and the Rust
     # and zig overlays, and this flake follows those pins.
-    kit.url = "path:/home/user/src/stack_wallet/wt/native-build-kit";
+    kit.url = "git+ssh://git@git.cypherstack.com:222/sneurlax/native-build-kit.git?ref=feat/native-build-kit";
     nixpkgs.follows = "kit/nixpkgs";
     rust-overlay.follows = "kit/rust-overlay";
     zig-overlay.follows = "kit/zig-overlay";

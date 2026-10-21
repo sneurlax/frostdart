@@ -23,13 +23,18 @@
         "zig-overlay": "zig-overlay"
       },
       "locked": {
-        "narHash": "sha256-93i5lGRoE384kLTMwMwUAhFioh5kwi3yTrWoS9II45I=",
-        "path": "/home/user/src/stack_wallet/wt/native-build-kit",
-        "type": "path"
+        "lastModified": 1792574066,
+        "narHash": "sha256-LHxxY+klUfsA7bPX35nFTfU0VKM5vQOYsOSr9pEiQQE=",
+        "ref": "feat/native-build-kit",
+        "rev": "265c26ae8321b3e4ef2aad764a7b803daaa7c061",
+        "revCount": 4,
+        "type": "git",
+        "url": "ssh://git@git.cypherstack.com:222/sneurlax/native-build-kit.git"
       },
       "original": {
-        "path": "/home/user/src/stack_wallet/wt/native-build-kit",
-        "type": "path"
+        "ref": "feat/native-build-kit",
+        "type": "git",
+        "url": "ssh://git@git.cypherstack.com:222/sneurlax/native-build-kit.git"
       }
     },
     "nixpkgs": {

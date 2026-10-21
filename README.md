@@ -44,7 +44,7 @@ Only dynamic libraries are provided, built for macOS 12, iOS 15, Android API
 the toolchain versions live in `build-config.json`.
 
 `hook/build.dart` is a thin call into the `native_prebuilt_hook` package from
-[native-build-kit](https://github.com/cypherstack/native-build-kit), which
+[native-build-kit](https://git.cypherstack.com/sneurlax/native-build-kit), which
 implements the three modes for every plugin built with the kit. Source and dev
 builds read a git checkout (a clone or a worktree) as a git flake, so only
 tracked files are inputs, and a package in the pub cache as a plain path.
@@ -68,7 +68,7 @@ the release is only published when both hosts succeed and agree.
 ### Reference builds with Nix
 
 `flake.nix` builds every non-Apple target in a sandbox through
-[native-build-kit](https://github.com/cypherstack/native-build-kit)'s
+[native-build-kit](https://git.cypherstack.com/sneurlax/native-build-kit)'s
 `mkCargoLibrary`, whose nixpkgs, Rust and zig pins it follows. The toolchains
 are pinned by hash: the official Rust and zig releases, lld from nixpkgs for the Windows
 link, the Windows SDK fetched by xwin from a pinned manifest, and the Android
