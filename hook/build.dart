@@ -11,5 +11,13 @@ Future<void> main(List<String> args) => runNativeBuildHook(
     bindingsAssetName: 'frostdart_bindings_generated.dart',
     // Read by nix/build-apple.sh; the hook sets it, users do not.
     appleAnyXcodeVariable: 'FROSTDART_ANY_XCODE',
+    // Rerun source and dev builds when what the Nix build reads changes.
+    nativeSources: [
+      'src/serai',
+      'flake.nix',
+      'flake.lock',
+      'nix',
+      'build-config.json',
+    ],
   ),
 );

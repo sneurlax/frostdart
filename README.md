@@ -34,16 +34,26 @@ hooks:
 
 - `prebuilt` downloads the library published for the pinned native release
   and verifies it against the hash recorded in `hook/prebuilt_hashes.json`.
-  A mismatch is an error, never a fallback. Downloads are cached by hash.
+  A mismatch is an error, never a fallback. Downloads are cached by hash, so
+  only the first build after a release needs network access; offline with
+  an empty cache the build fails with the URL it could not reach. Downloads
+  time out after 30 seconds without a connection or 60 seconds without
+  data, and bodies over 256 MiB are refused.
 - `source` builds the library with the Nix flake, the same build CI uses, and
   verifies it against the same hash. Apple targets require the pinned Xcode
   unless `any_xcode: true`, in which case the hash check still applies.
 - `dev` builds with the Nix flake but skips the Xcode pin and the hash check,
   for working on the Rust code.
 
+Source and dev builds rerun when `src/serai`, `flake.nix`, `flake.lock`,
+`nix/` or `build-config.json` change. Before the first native release is
+recorded, a build without a `build` user-define falls back to dev mode with
+a warning; asking for `prebuilt` or `source` explicitly is then an error.
+
 `developer_dir` selects the Xcode for Apple builds when `xcode-select`
 points elsewhere (for example at the Command Line Tools); relative paths
-resolve against the pubspec that sets it.
+resolve against the pubspec that sets it, and the directory must exist and
+contain `usr/bin`.
 
 The settings are user-defines, not environment variables, because the hooks
 runner that `dart test`, `dart run` and `flutter build` use starts hooks with
@@ -61,7 +71,11 @@ cannot use an SSH agent, so the key must be usable from `~/.ssh` without one.
 
 Only dynamic libraries are provided, built for macOS 12, iOS 15, Android API
 24, and glibc 2.28 at minimum. The floors, the canonical path prefixes, and
-the toolchain versions live in `build-config.json`.
+the toolchain versions live in `build-config.json`. An Android build with a
+lower `minSdkVersion` fails. For iOS and macOS the hook can only warn:
+Flutter passes the hook fixed versions (iOS 13 and macOS 13 in Flutter
+3.47), not the app's deployment target, so the app itself must deploy to at
+least iOS 15 and macOS 12.
 
 `hook/build.dart` is a thin call into the `native_prebuilt_hook` package from
 [native-build-kit](https://git.cypherstack.com/sneurlax/native-build-kit),
