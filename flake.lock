@@ -23,11 +23,11 @@
         "zig-overlay": "zig-overlay"
       },
       "locked": {
-        "lastModified": 1792574066,
-        "narHash": "sha256-LHxxY+klUfsA7bPX35nFTfU0VKM5vQOYsOSr9pEiQQE=",
+        "lastModified": 1792574219,
+        "narHash": "sha256-5STtJ6aiSYt/Wkwu9MTtFIjWJV6BiXTAB6gzbWNl7tU=",
         "ref": "feat/native-build-kit",
-        "rev": "265c26ae8321b3e4ef2aad764a7b803daaa7c061",
-        "revCount": 4,
+        "rev": "c87255bc27f446a79bea7ac44c395096264b2ec2",
+        "revCount": 6,
         "type": "git",
         "url": "ssh://git@git.cypherstack.com:222/sneurlax/native-build-kit.git"
       },
