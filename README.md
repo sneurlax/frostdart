@@ -21,34 +21,54 @@ Regenerate bindings with `dart run ffigen --config ffigen.yaml` (requires libcla
 ## Native library
 
 The hook obtains the Rust library in one of three modes, chosen with the
-`build` user-define in the consuming app's `pubspec.yaml` or with the
-`FROSTDART_BUILD` environment variable, which takes precedence:
+`build` user-define in the consuming app's `pubspec.yaml`:
 
 ```yaml
 hooks:
   user_defines:
     frostdart:
       build: prebuilt   # the default; or source, or dev
+      # any_xcode: true # source builds of Apple targets skip the Xcode pin
+      # developer_dir: /Applications/Xcode-27.0.app/Contents/Developer
 ```
 
 - `prebuilt` downloads the library published for the pinned native release
   and verifies it against the hash recorded in `hook/prebuilt_hashes.json`.
   A mismatch is an error, never a fallback. Downloads are cached by hash.
 - `source` builds the library with the Nix flake, the same build CI uses, and
-  verifies it against the same hash. Apple targets require the pinned Xcode.
+  verifies it against the same hash. Apple targets require the pinned Xcode
+  unless `any_xcode: true`, in which case the hash check still applies.
 - `dev` builds with the Nix flake but skips the Xcode pin and the hash check,
   for working on the Rust code.
+
+`developer_dir` selects the Xcode for Apple builds when `xcode-select`
+points elsewhere (for example at the Command Line Tools); relative paths
+resolve against the pubspec that sets it.
+
+The settings are user-defines, not environment variables, because the hooks
+runner that `dart test`, `dart run` and `flutter build` use starts hooks with
+a filtered environment: only PATH, HOME, the temp and proxy variables, the
+Android NDK variables, a few Windows ones, and names starting with `CARGO_`,
+`CCACHE_`, `DOTNET_`, `NIX_`, `NUGET_`, `RUSTUP_` or `CONAN_` get through (see
+`includeHookEnvironmentVariable` in
+[hooks_runner's build_runner.dart](https://github.com/dart-lang/native/blob/main/pkgs/hooks_runner/lib/src/build_runner/build_runner.dart)).
+Setting `FROSTDART_BUILD` or `DEVELOPER_DIR` in the shell has no effect on
+the hook. `NIX_CONFIG` does get through, and the hook adds the line that
+enables flakes to whatever it contains. The filtered environment also has no
+`SSH_AUTH_SOCK`: if the flake fetches an input over `git+ssh://` (such as
+the native-build-kit flake from the Cypher Stack Gitea), Nix inside the hook
+cannot use an SSH agent, so the key must be usable from `~/.ssh` without one.
 
 Only dynamic libraries are provided, built for macOS 12, iOS 15, Android API
 24, and glibc 2.28 at minimum. The floors, the canonical path prefixes, and
 the toolchain versions live in `build-config.json`.
 
 `hook/build.dart` is a thin call into the `native_prebuilt_hook` package from
-[native-build-kit](https://git.cypherstack.com/sneurlax/native-build-kit), which
-implements the three modes for every plugin built with the kit. Source and dev
-builds read a git checkout (a clone or a worktree) as a git flake, so only
-tracked files are inputs, and a package in the pub cache as a plain path.
-They need Nix, so on Windows only the prebuilt mode works outside WSL2.
+[native-build-kit](https://git.cypherstack.com/sneurlax/native-build-kit),
+which implements the three modes for every plugin built with the kit. Source
+and dev builds read a git checkout (a clone or a worktree) as a git flake, so
+only tracked files are inputs, and a package in the pub cache as a plain
+path. They need Nix, so on Windows only the prebuilt mode works outside WSL2.
 
 ### Native releases
 
